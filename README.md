@@ -23,7 +23,7 @@ LLM assistants can draft an email but can't send it at 9am tomorrow if your lapt
 - [Deployment](#deployment)
 - [Design decisions and tradeoffs](#design-decisions-and-tradeoffs)
 - [Roadmap and known limitations](#roadmap-and-known-limitations)
-- [Contributing and license](#contributing-and-license)
+- [Contributing](#contributing)
 
 ## Key features
 
@@ -222,8 +222,6 @@ curl http://localhost:8000/health       # send_url must match the URL QStash cal
 - [ ] A reschedule tool, plus HTML bodies, CC/BCC and attachments (only plain text is sent today)
 - [ ] Automated tests and CI
 
-## Contributing and license
+## Contributing
 
 Issues and pull requests are welcome. For changes, keep `schema.sql` idempotent (it runs on every startup) and check that `/health` reports the expected `send_url` after you deploy.
-
-**License:** [TODO: no LICENSE file in the repo; choose one, e.g. MIT, and add it]

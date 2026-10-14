@@ -23,3 +23,11 @@ create table if not exists jobs (
 );
 
 create index if not exists jobs_key_hash_send_at on jobs (key_hash, send_at);
+
+-- Google sign-in: users send via the Gmail API with a refresh token instead of SMTP.
+alter table users add column if not exists provider text not null default 'smtp';  -- smtp | google
+alter table users add column if not exists enc_refresh_token text;                  -- Fernet-encrypted
+alter table users alter column smtp_host drop not null;
+alter table users alter column smtp_port drop not null;
+alter table users alter column enc_password drop not null;
+create index if not exists users_provider_email on users (provider, email);

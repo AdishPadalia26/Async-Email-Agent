@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Async Email Agent</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --surface: #ffffff; --text: #1c1c1a; --muted: #6b6b66; --border: #e3e3de;
+    --accent: #2f5bea; --accent-text: #ffffff; --code-bg: #f1f1ed;
+    --ok: #1f7a3d; --ok-bg: #e5f4ea; --warn: #8a5a00; --warn-bg: #fdf1d8;
+    --bad: #b42318; --bad-bg: #fde8e6; --idle: #55554f; --idle-bg: #ececea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141413; --surface: #1d1d1b; --text: #ececea; --muted: #9a9a94; --border: #33332f;
+      --accent: #7c9cff; --accent-text: #0d0d0c; --code-bg: #262623;
+      --ok: #6fd28f; --ok-bg: #173322; --warn: #f0c060; --warn-bg: #3a2d10;
+      --bad: #ff8a80; --bad-bg: #3d1a17; --idle: #b5b5ae; --idle-bg: #2a2a27;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 32px 16px 64px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 28px; flex-wrap: wrap; }
+  h1 { font-size: 20px; margin: 0; }
+  h2 { font-size: 16px; margin: 0 0 4px; }
+  p { margin: 0 0 12px; }
+  .muted { color: var(--muted); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+  .hero { text-align: center; padding: 48px 20px; }
+  .hero h2 { font-size: 24px; margin-bottom: 8px; }
+  .hero p { max-width: 520px; margin: 0 auto 24px; }
+  button, .btn { font: inherit; border-radius: 8px; padding: 8px 14px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text); text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+  button:hover, .btn:hover { border-color: var(--muted); }
+  .primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
+  .primary:hover { border-color: var(--accent); filter: brightness(1.08); }
+  .small { padding: 4px 10px; font-size: 13px; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .banner { border-radius: 8px; padding: 10px 14px; margin-bottom: 20px; }
+  .banner.bad { background: var(--bad-bg); color: var(--bad); }
+  .banner.warn { background: var(--warn-bg); color: var(--warn); }
+  .key { display: flex; gap: 8px; align-items: stretch; }
+  code, pre { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 13px; }
+  .key code { flex: 1; min-width: 0; background: var(--code-bg); border-radius: 8px; padding: 8px 10px; overflow-x: auto; white-space: nowrap; }
+  .tabs { display: flex; gap: 4px; flex-wrap: wrap; margin: 16px 0 8px; }
+  .tabs button[aria-selected="true"] { background: var(--code-bg); border-color: var(--muted); }
+  .snippet { position: relative; }
+  .snippet pre { background: var(--code-bg); border-radius: 8px; padding: 12px; margin: 0; overflow-x: auto; white-space: pre; }
+  .snippet button { position: absolute; top: 8px; right: 8px; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; font-size: 13px; }
+  .err-msg { color: var(--bad); font-size: 13px; max-width: 260px; }
+  .badge { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .badge.sent { color: var(--ok); background: var(--ok-bg); }
+  .badge.pending, .badge.sending { color: var(--warn); background: var(--warn-bg); }
+  .badge.failed { color: var(--bad); background: var(--bad-bg); }
+  .badge.cancelled { color: var(--idle); background: var(--idle-bg); }
+  .empty { text-align: center; padding: 24px 0; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>✉️ Async Email Agent</h1>
+    <div id="account" hidden>
+      <span id="email" class="muted"></span>
+      <button class="small" id="logout">Log out</button>
+    </div>
+  </header>
+
+  <div id="error" class="banner bad" hidden></div>
+  <p id="loading" class="muted">Loading…</p>
+
+  <!-- Signed out -->
+  <section id="signed-out" class="card hero" hidden>
+    <h2>Schedule emails with Claude, sent even while you're offline</h2>
+    <p class="muted">Sign in with Google, paste one line into Claude, then just ask:
+      "Email the team the weekly update every Monday at 9am." Emails go out from your own Gmail.</p>
+    <a class="btn primary" href="/auth/google">Sign in with Google</a>
+    <p class="muted" style="margin-top:16px;font-size:13px">On Google's screen, keep "Send email on your behalf" ticked.
+      If Google warns the app isn't verified yet, choose Advanced → Continue.</p>
+  </section>
+
+  <!-- Signed in -->
+  <section id="signed-in" hidden>
+    <div class="card">
+      <h2>Connect Claude</h2>
+      <div id="key-new" hidden>
+        <div class="banner warn">Copy your API key now. It's shown only once.</div>
+        <div class="key"><code id="key-value"></code><button id="copy-key">Copy</button></div>
+      </div>
+      <p id="key-hidden" class="muted" hidden>Your API key was shown when you first signed in.
+        Lost it? Rotate it to get a new one (the old key stops working).</p>
+
+      <div class="tabs" role="tablist">
+        <button role="tab" data-tab="desktop" aria-selected="true">Claude Desktop</button>
+        <button role="tab" data-tab="code" aria-selected="false">Claude Code</button>
+        <button role="tab" data-tab="url" aria-selected="false">claude.ai / Cursor</button>
+      </div>
+      <p id="tab-help" class="muted"></p>
+      <div class="snippet"><pre id="snippet"></pre><button class="small" id="copy-snippet">Copy</button></div>
+      <div class="row" style="margin:16px 0 0">
+        <span class="muted" style="font-size:13px">Then try: "Schedule an email to myself in 5 minutes saying hello."</span>
+        <button class="small" id="rotate">Rotate key</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <h2>Your emails</h2>
+        <button class="small" id="refresh">Refresh</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>To</th><th>Subject</th><th>Send time</th><th>Status</th><th></th></tr></thead>
+          <tbody id="jobs"></tbody>
+        </table>
+      </div>
+      <p id="no-jobs" class="muted empty" hidden>No emails yet. Ask Claude to schedule one.</p>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const ERRORS = {
+  state: "Sign-in expired. Please try again.",
+  denied: "Sign-in was cancelled.",
+  exchange: "Google sign-in failed. Please try again.",
+  scope: "Please keep \"Send email on your behalf\" ticked on Google's screen. It's needed to send your emails.",
+  account: "Google didn't return a verified email or offline access. Please try again.",
+};
+const TABS = {
+  desktop: {
+    help: "Settings → Developer → Edit Config, add this to claude_desktop_config.json, then restart Claude Desktop. Needs Node.js.",
+    text: (url, key) => JSON.stringify({ mcpServers: { "email-agent": {
+      command: "npx",
+      args: ["mcp-remote", url, "--header", "Authorization: Bearer ${KEY}"],
+      env: { KEY: key },
+    } } }, null, 2),
+  },
+  code: {
+    help: "Run this in your terminal.",
+    text: (url, key) => `claude mcp add --transport http email-agent ${url} --header "Authorization: Bearer ${key}"`,
+  },
+  url: {
+    help: "claude.ai: Settings → Connectors → Add custom connector. Cursor: add as a remote MCP server. Treat this URL like a password.",
+    text: (url, key) => `${url}?key=${key}`,
+  },
+};
+
+let mcpUrl = "", apiKey = null, tab = "desktop";
+
+function showError(msg) { $("error").textContent = msg; $("error").hidden = !msg; }
+
+async function api(path, method = "GET") {
+  const res = await fetch(path, { method, credentials: "same-origin" });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401) { signedOut(); throw new Error("signed out"); }
+  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+  return data;
+}
+
+function copy(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    const old = btn.textContent; btn.textContent = "Copied"; setTimeout(() => (btn.textContent = old), 1500);
+  });
+}
+
+function renderKey() {
+  $("key-new").hidden = !apiKey;
+  $("key-hidden").hidden = !!apiKey;
+  if (apiKey) $("key-value").textContent = apiKey;
+  document.querySelectorAll("[data-tab]").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === tab));
+  $("tab-help").textContent = TABS[tab].help;
+  $("snippet").textContent = TABS[tab].text(mcpUrl, apiKey || "YOUR_API_KEY");
+}
+
+function cell(row, text, cls) {
+  const td = row.insertCell(); td.textContent = text; if (cls) td.className = cls; return td;
+}
+
+async function loadJobs() {
+  const jobs = await api("/api/jobs");
+  const body = $("jobs"); body.replaceChildren();
+  $("no-jobs").hidden = jobs.length > 0;
+  for (const j of jobs) {
+    const row = body.insertRow();
+    cell(row, j.to.join(", "));
+    const subj = cell(row, j.subject);
+    if (j.error) { const e = document.createElement("div"); e.className = "err-msg"; e.textContent = j.error; subj.append(e); }
+    cell(row, new Date(j.send_at_utc).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }));
+    const badge = document.createElement("span"); badge.className = `badge ${j.status}`; badge.textContent = j.status;
+    row.insertCell().append(badge);
+    const act = row.insertCell();
+    if (j.status === "pending") {
+      const b = document.createElement("button"); b.className = "small"; b.textContent = "Cancel";
+      b.onclick = async () => {
+        if (!confirm(`Cancel "${j.subject}"?`)) return;
+        b.disabled = true;
+        try { await api(`/api/jobs/${j.job_id}/cancel`, "POST"); await loadJobs(); }
+        catch (e) { showError(e.message); b.disabled = false; }
+      };
+      act.append(b);
+    }
+  }
+}
+
+function signedOut() {
+  $("loading").hidden = true; $("signed-in").hidden = true; $("account").hidden = true; $("signed-out").hidden = false;
+}
+
+async function init() {
+  const err = new URLSearchParams(location.search).get("error");
+  if (err) { showError(ERRORS[err] || "Something went wrong."); history.replaceState(null, "", "/"); }
+  let me;
+  try { me = await api("/api/me"); } catch { return; }
+  mcpUrl = me.mcp_url; apiKey = me.new_api_key;
+  $("email").textContent = me.email;
+  $("loading").hidden = true; $("account").hidden = false; $("signed-in").hidden = false;
+  renderKey();
+  loadJobs().catch((e) => showError(e.message));
+}
+
+document.querySelectorAll("[data-tab]").forEach((b) => (b.onclick = () => { tab = b.dataset.tab; renderKey(); }));
+$("copy-key").onclick = (e) => copy(apiKey, e.target);
+$("copy-snippet").onclick = (e) => copy($("snippet").textContent, e.target);
+$("refresh").onclick = () => loadJobs().catch((e) => showError(e.message));
+$("rotate").onclick = async () => {
+  if (!confirm("Get a new API key? The current key stops working, so you'll need to update Claude.")) return;
+  try { apiKey = (await api("/api/key/rotate", "POST")).new_api_key; renderKey(); }
+  catch (e) { showError(e.message); }
+};
+$("logout").onclick = async () => { await fetch("/logout", { method: "POST" }); apiKey = null; signedOut(); };
+init();
+</script>
+</body>
+</html>

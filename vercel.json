@@ -1,6 +1,6 @@
 {
   "rewrites": [{ "source": "/:path*", "destination": "/api/index?__path=/:path*" }],
   "functions": {
-    "api/index.py": { "maxDuration": 60, "includeFiles": "{main.py,schema.sql}" }
+    "api/index.py": { "maxDuration": 60, "includeFiles": "{main.py,schema.sql,dashboard.html}" }
   }
 }

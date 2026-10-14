@@ -67,12 +67,14 @@ def current_user() -> dict:
     auth = get_http_request().headers.get("authorization", "")
     if not auth.lower().startswith("bearer "):
         raise ToolError("Missing 'Authorization: Bearer <api_key>' header. Call connect_mailbox first.")
+    # Last token only: tolerates "Bearer Bearer ea_..." (clients that prefix "Bearer" themselves) and quotes.
+    api_key = auth.split()[-1].strip("\"'") if auth.split() else ""
     with db() as conn:
         user = conn.execute(
-            "select key_hash, email from users where key_hash = %s", (hash_key(auth[7:].strip()),)
+            "select key_hash, email from users where key_hash = %s", (hash_key(api_key),)
         ).fetchone()
     if not user:
-        raise ToolError("Invalid API key.")
+        raise ToolError(f"Invalid API key (received one starting {api_key[:6]!r}, length {len(api_key)}; keys start 'ea_' and are 46 chars).")
     return user
 
 

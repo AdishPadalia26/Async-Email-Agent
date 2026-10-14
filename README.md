@@ -38,6 +38,8 @@ LLM assistants can draft an email but can't send it at 9am tomorrow if your lapt
 
 ## Demo
 
+![Demo: Claude schedules a weekly email and it's sent at 9:00 with the laptop closed](demo/app-demo.gif)
+
 **[▶ Watch the demo video](demo/app-demo.mp4)** (20s): Claude schedules a weekly email, the laptop stays closed, and it's sent at 9:00 from your own Gmail.
 
 **Live:** [async-email-agent.vercel.app](https://async-email-agent.vercel.app/). Sign in with Google to get an API key and a ready-made connection snippet.

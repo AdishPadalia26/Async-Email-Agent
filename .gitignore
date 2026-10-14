@@ -1,0 +1,4 @@
+.env
+__pycache__/
+.venv/
+email-agent-1hr-plan.md

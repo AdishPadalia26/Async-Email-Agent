@@ -2,6 +2,7 @@
 
 import asyncio
 import hashlib
+import logging
 import os
 import secrets
 import smtplib
@@ -22,16 +23,20 @@ from qstash import QStash, Receiver
 from starlette.requests import Request
 from starlette.responses import JSONResponse, PlainTextResponse
 
-DATABASE_URL = os.environ["DATABASE_URL"]
-PUBLIC_URL = os.environ["PUBLIC_URL"].rstrip("/")
-SEND_URL = f"{PUBLIC_URL}/send"
+def env(name: str) -> str:
+    # Tolerate values pasted with surrounding quotes/whitespace (common in dashboard env editors).
+    return os.environ[name].strip().strip('"').strip("'").strip()
 
-fernet = Fernet(os.environ["FERNET_KEY"])
-qstash = QStash(os.environ["QSTASH_TOKEN"])
-receiver = Receiver(
-    current_signing_key=os.environ["QSTASH_CURRENT_SIGNING_KEY"],
-    next_signing_key=os.environ["QSTASH_NEXT_SIGNING_KEY"],
-)
+
+DATABASE_URL = env("DATABASE_URL")
+PUBLIC_URL = env("PUBLIC_URL").rstrip("/")
+SEND_URL = f"{PUBLIC_URL}/send"
+SIGNING_KEYS = (env("QSTASH_CURRENT_SIGNING_KEY"), env("QSTASH_NEXT_SIGNING_KEY"))
+
+fernet = Fernet(env("FERNET_KEY"))
+qstash = QStash(env("QSTASH_TOKEN"), base_url=env("QSTASH_URL") if os.environ.get("QSTASH_URL") else None)
+receiver = Receiver(current_signing_key=SIGNING_KEYS[0], next_signing_key=SIGNING_KEYS[1])
+log = logging.getLogger("email_agent")
 
 mcp = FastMCP(
     "Async Email Agent",
@@ -244,7 +249,8 @@ async def send_route(request: Request):
     raw = await request.body()
     try:
         receiver.verify(signature=request.headers.get("upstash-signature", ""), body=raw.decode(), url=SEND_URL)
-    except Exception:
+    except Exception as e:
+        log.warning("rejected /send: %s (expected url %s)", e, SEND_URL)
         return PlainTextResponse("invalid signature", status_code=401)
 
     try:
@@ -285,7 +291,9 @@ async def send_route(request: Request):
 
 @mcp.custom_route("/health", methods=["GET"])
 async def health(_: Request):
-    return JSONResponse({"ok": True})
+    # Non-secret config fingerprints, to debug env mismatches without exposing keys.
+    fp = lambda s: hashlib.sha256(s.encode()).hexdigest()[:8]
+    return JSONResponse({"ok": True, "send_url": SEND_URL, "signing_key_fps": [fp(k) for k in SIGNING_KEYS]})
 
 
 def init_db() -> None:

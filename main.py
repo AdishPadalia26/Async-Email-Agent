@@ -83,7 +83,14 @@ def smtp_login(host: str, port: int, email: str, password: str) -> smtplib.SMTP:
     else:
         server = smtplib.SMTP(host, port, timeout=20)
         server.starttls(context=ctx)
-    server.login(email, password)
+    server.ehlo()
+    if "PLAIN" in server.esmtp_features.get("auth", "").upper().split():
+        # Single mechanism: smtplib's login() retries with AUTH LOGIN after a 535, and Gmail then
+        # drops the connection, masking the real "bad credentials" error.
+        server.user, server.password = email, password
+        server.auth("PLAIN", server.auth_plain, initial_response_ok=True)
+    else:
+        server.login(email, password)
     return server
 
 

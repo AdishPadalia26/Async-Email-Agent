@@ -3,12 +3,24 @@
 import asyncio
 import sys
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import main  # noqa: E402
 
 _db_ready = False
+
+
+def restore_path(scope):
+    """vercel.json rewrites every path to /api/index?__path=<original>; put the original back."""
+    params = parse_qsl(scope.get("query_string", b"").decode(), keep_blank_values=True)
+    original = next((v for k, v in params if k == "__path"), None)
+    if original is None:
+        return scope
+    path = "/" + original.lstrip("/")
+    query = urlencode([(k, v) for k, v in params if k != "__path"]).encode()
+    return {**scope, "path": path, "raw_path": path.encode(), "query_string": query}
 
 
 async def app(scope, receive, send):
@@ -22,6 +34,9 @@ async def app(scope, receive, send):
             elif message["type"] == "lifespan.shutdown":
                 await send({"type": "lifespan.shutdown.complete"})
                 return
+
+    if scope["type"] == "http":
+        scope = restore_path(scope)
 
     if b"__scope" in scope.get("query_string", b""):  # TEMP debug
         import json

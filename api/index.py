@@ -19,7 +19,8 @@ def restore_path(scope):
     if original is None:
         return scope
     path = "/" + original.lstrip("/")
-    query = urlencode([(k, v) for k, v in params if k not in ("__path", "path")]  # Vercel also appends the named param).encode()
+    # Vercel also appends the named rewrite param (`path`); drop both.
+    query = urlencode([(k, v) for k, v in params if k not in ("__path", "path")]).encode()
     return {**scope, "path": path, "raw_path": path.encode(), "query_string": query}
 
 

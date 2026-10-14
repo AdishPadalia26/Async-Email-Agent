@@ -64,9 +64,13 @@ def hash_key(api_key: str) -> str:
 
 def current_user() -> dict:
     """Resolve the caller from the Bearer key. Every tenant-scoped query filters by key_hash."""
-    auth = get_http_request().headers.get("authorization", "")
+    request = get_http_request()
+    auth = request.headers.get("authorization", "")
+    # Fallback for clients that can't set headers: <url>/mcp?key=ea_...
+    if not auth.lower().startswith("bearer ") and request.query_params.get("key"):
+        auth = "Bearer " + request.query_params["key"]
     if not auth.lower().startswith("bearer "):
-        raise ToolError("Missing 'Authorization: Bearer <api_key>' header. Call connect_mailbox first.")
+        raise ToolError("Missing API key: send 'Authorization: Bearer <api_key>' or connect to /mcp?key=<api_key>. Call connect_mailbox first.")
     # Last token only: tolerates "Bearer Bearer ea_..." (clients that prefix "Bearer" themselves) and quotes.
     api_key = auth.split()[-1].strip("\"'") if auth.split() else ""
     with db() as conn:

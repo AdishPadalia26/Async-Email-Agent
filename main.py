@@ -29,7 +29,10 @@ def env(name: str) -> str:
 
 
 DATABASE_URL = env("DATABASE_URL")
-PUBLIC_URL = env("PUBLIC_URL").rstrip("/")
+PUBLIC_URL = (
+    env("PUBLIC_URL") if os.environ.get("PUBLIC_URL", "").strip()
+    else "https://" + env("VERCEL_PROJECT_PRODUCTION_URL")  # set automatically on Vercel
+).rstrip("/")
 SEND_URL = f"{PUBLIC_URL}/send"
 SIGNING_KEYS = (env("QSTASH_CURRENT_SIGNING_KEY"), env("QSTASH_NEXT_SIGNING_KEY"))
 

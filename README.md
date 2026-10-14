@@ -40,7 +40,7 @@ LLM assistants can draft an email but can't send it at 9am tomorrow if your lapt
 
 [TODO: screenshot or GIF of the dashboard and a Claude scheduling session]
 
-**Live:** [TODO: production URL]
+**Live:** [async-email-agent.vercel.app](https://async-email-agent.vercel.app/). Sign in with Google to get an API key and a ready-made connection snippet.
 
 ## Architecture
 

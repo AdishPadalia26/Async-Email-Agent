@@ -2,12 +2,12 @@
 
 A multi-tenant MCP server: anyone connects **their own** mailbox, asks Claude to schedule emails at any times, and they're sent from the cloud while the user is offline.
 
-**Architecture:** Claude → MCP + Bearer key → FastMCP (Render) → Neon Postgres (users, jobs) + QStash (delays until `send_at`) → `POST /send` → SMTP → inbox.
+**Architecture:** Claude → MCP + Bearer key → FastMCP (Vercel serverless) → Neon Postgres (users, jobs) + QStash (delays until `send_at`) → `POST /send` → SMTP → inbox.
 
-**Connect:** add `https://<your-app>.onrender.com/mcp` as an MCP server, call `connect_mailbox` with an SMTP app password, then reconnect with `Authorization: Bearer <api_key>`, for example in Claude Desktop:
+**Connect:** add `https://<your-app>.vercel.app/mcp` as an MCP server, call `connect_mailbox` with an SMTP app password, then reconnect with `Authorization: Bearer <api_key>`, for example in Claude Desktop:
 ```json
 { "mcpServers": { "email-agent": { "command": "npx",
-  "args": ["mcp-remote", "https://<your-app>.onrender.com/mcp", "--header", "Authorization: Bearer ${KEY}"],
+  "args": ["mcp-remote", "https://<your-app>.vercel.app/mcp", "--header", "Authorization: Bearer ${KEY}"],
   "env": { "KEY": "ea_..." } } } }
 ```
 
@@ -17,7 +17,7 @@ A multi-tenant MCP server: anyone connects **their own** mailbox, asks Claude to
 
 ## Run / deploy
 1. `pip install -r requirements.txt`, then set the env vars from `.env.example`.
-2. Push to GitHub, then create a Render Web Service (the `render.yaml` blueprint is included). The schema is created automatically on startup.
+2. Import the GitHub repo in Vercel (`api/index.py` + `vercel.json`) and set the env vars. `PUBLIC_URL` must be the production domain. The schema is created automatically on first request. (`python main.py` / `render.yaml` also work on any host that allows outbound SMTP; Render's free tier does not.)
 3. Test: `npx @modelcontextprotocol/inspector`, then connect to `<PUBLIC_URL>/mcp`.
 
-Notes: Render's free tier cold-starts in about 30–60s, and QStash retries cover that. QStash's free tier limits how far ahead a message can be delayed. Times are stored in UTC.
+Notes: QStash's free tier limits how far ahead a message can be delayed. Times are stored in UTC.

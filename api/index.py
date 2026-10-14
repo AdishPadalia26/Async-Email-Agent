@@ -23,6 +23,13 @@ async def app(scope, receive, send):
                 await send({"type": "lifespan.shutdown.complete"})
                 return
 
+    if b"__scope" in scope.get("query_string", b""):  # TEMP debug
+        import json
+        info = {k: (v.decode() if isinstance(v, bytes) else v) for k, v in scope.items() if k in ("path", "raw_path", "root_path", "query_string", "type")}
+        await send({"type": "http.response.start", "status": 200, "headers": [(b"content-type", b"application/json")]})
+        await send({"type": "http.response.body", "body": json.dumps(info).encode()})
+        return
+
     if not _db_ready:
         await asyncio.to_thread(main.init_db)
         _db_ready = True
